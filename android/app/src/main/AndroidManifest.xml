@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Lets the app install/run on Quest without a VR-specific manifest entry -->
+    <uses-feature android:name="android.hardware.vr.headtracking" android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:label="WBB Quest Bridge"
+        android:theme="@style/Theme.WBBQuestBridge"
+        android:supportsRtl="true">
+
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest3s|quest3|quest2" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="com.oculus.intent.category.VR" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
