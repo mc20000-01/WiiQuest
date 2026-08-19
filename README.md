@@ -6,7 +6,7 @@ can't open the raw Bluetooth socket the board needs (see "Why two pieces?"
 below):
 
 ```
-[Balance Board] --Bluetooth--> [wbb_bridge.py on your Arch PC]
+[Balance Board] --Bluetooth--> [bridge/wbb_bridge.py on your Arch PC]
                                         |
                                         |  UDP (JSON), port 50123
                                         v
@@ -23,11 +23,11 @@ below):
 ## 1. Run the bridge on your PC
 
 ```
-cd bridge
+# From the repository root:
 # one-time, so you don't need sudo every run:
 sudo setcap cap_net_raw+eip $(readlink -f $(which python3))
 
-python3 wbb_bridge.py <QUEST_IP_ADDRESS>
+python3 bridge/wbb_bridge.py <QUEST_IP_ADDRESS>
 ```
 
 Find your Quest's IP under Settings → Wi-Fi → (network) → Advanced, or via

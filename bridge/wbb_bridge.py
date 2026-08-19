@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-wbb_bridge.py — Wii Balance Board -> UDP bridge (Linux / BlueZ)
+bridge/wbb_bridge.py — Wii Balance Board -> UDP bridge (Linux / BlueZ)
 
 Connects to a Wii Fit Balance Board over raw Bluetooth L2CAP (the same
 protocol your board already speaks — PSM 0x11 control / 0x13 data) using
@@ -17,7 +17,7 @@ Requirements:
     SYNC button. The light will blink while it's discoverable.
 
 Usage:
-  python3 wbb_bridge.py <quest_ip> [--port 50123] [--mac AA:BB:CC:DD:EE:FF]
+  python3 bridge/wbb_bridge.py <quest_ip> [--port 50123] [--mac AA:BB:CC:DD:EE:FF]
 
 If --mac is omitted, the script tries to discover the board via
 `bluetoothctl` (press the red sync button right before running it).
