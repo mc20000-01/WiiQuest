@@ -40,12 +40,22 @@ Your PC and the Quest need to be on the same Wi-Fi network.
 
 ## 2. Build the Quest app
 
-Open `android/` in Android Studio (Giraffe or newer), let it sync, then
-either:
+For the easiest command-line build, run `./make.sh` from the repository root.
+It checks for Java/Gradle, installs Android command-line tools into
+`$ANDROID_HOME` or `~/Android/Sdk` when missing, creates the local Gradle
+wrapper files that are intentionally not committed as binaries, and runs the
+debug build.
 
-- Build → Build Bundle(s)/APK(s) → Build APK(s), or
-- `./gradlew assembleDebug` from the `android/` directory once you have the
-  Android SDK installed.
+```bash
+./make.sh
+```
+
+The APK will be written under `android/app/build/outputs/apk/debug/`.
+
+Alternatively, open `android/` in Android Studio (Giraffe or newer), let it
+sync, then use Build → Build Bundle(s)/APK(s) → Build APK(s). After `make.sh`
+has created the local wrapper, you can also run `./gradlew assembleDebug` from
+the `android/` directory.
 
 Sideload the resulting APK with SideQuest or `adb install`. Launch it, and
 it'll immediately start listening on UDP port 50123 for the bridge.
