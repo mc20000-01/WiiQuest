@@ -8,7 +8,7 @@ import java.net.DatagramSocket
 import java.net.SocketTimeoutException
 
 /**
- * Listens for JSON board packets from wbb_bridge.py on [port] and republishes
+ * Listens for JSON board packets from bridge/wbb_bridge.py on [port] and republishes
  * them as LiveData. Also tracks last-packet time so the UI can show whether
  * the bridge is currently connected.
  */
