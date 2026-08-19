@@ -1,0 +1,11 @@
+# Gradle and Android build output
+.gradle/
+build/
+**/build/
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Generated Gradle wrapper binary; make.sh recreates it locally
+android/gradle/wrapper/gradle-wrapper.jar

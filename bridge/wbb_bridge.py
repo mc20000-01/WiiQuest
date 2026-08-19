@@ -73,7 +73,11 @@ class WiiboardProtocol:
         ]
 
     def reporting_command(self):
-        return self.COMMAND_REPORTING, self.CONTINUOUS_REPORTING, self.EXTENSION_8BYTES
+        return (
+            self.COMMAND_REPORTING,
+            self.CONTINUOUS_REPORTING,
+            bytes([self.EXTENSION_8BYTES]),
+        )
 
     def light_command(self, on):
         return self.COMMAND_LIGHT, b"\x10" if on else b"\x00"
