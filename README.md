@@ -1,103 +1,135 @@
 # Wii Balance Board → Quest 3S controller bridge
 
 Turns a Wii Fit Balance Board into a mapped stick/button input source for a
-Quest 3S app you build. Two pieces, because the Quest's stock Android build
-can't open the raw Bluetooth socket the board needs (see "Why two pieces?"
-below):
+Quest 3S app you build. The PC-side Python bridge is now safe to run on
+Windows, Linux, and macOS:
+
+- **Linux** can use the real Balance Board through BlueZ/PyBluez classic
+  Bluetooth L2CAP.
+- **Windows/macOS** can run the same Python command in automatic demo mode so
+  friends can test the Quest app and UDP wiring even though those OSes do not
+  expose the board's classic L2CAP socket to normal Python.
 
 ```
-[Balance Board] --Bluetooth--> [wbb_bridge.py on your Arch PC]
+[Balance Board] --Bluetooth--> [bridge/wbb_bridge.py on Linux]
                                         |
-                                        |  UDP (JSON), port 50123
+                                        |  UDP JSON, port 50123
                                         v
                           [WBB Quest Bridge app, on the Quest]
                           - shows live sensor values
                           - lets you map cells/lean to stick+buttons
                                         |
-                                        |  UDP (JSON), loopback port 50124
+                                        |  UDP JSON, loopback port 50124
                                         v
                           [Your own Unity/Godot Quest app]
-                          (see unity/WBBReceiver.cs for a starting point)
 ```
 
-## 1. Run the bridge on your PC
+## Quick start
 
-```
-cd bridge
-# one-time, so you don't need sudo every run:
-sudo setcap cap_net_raw+eip $(readlink -f $(which python3))
+### 1. Run the Python bridge
 
-python3 wbb_bridge.py <QUEST_IP_ADDRESS>
+```bash
+python3 bridge/wbb_bridge.py <QUEST_IP_ADDRESS>
 ```
 
-Find your Quest's IP under Settings → Wi-Fi → (network) → Advanced, or via
-`adb shell ip addr show wlan0` if you have adb set up. Open the balance
-board's battery cover and press the red sync button right before running the
-script — it needs to be discoverable. Once connected, step on the board and
-you should see it start streaming.
+The bridge targets 60 Hz by default for low latency without wasting CPU. You
+can tune it with `--hz 90` or `--hz 30`.
 
-Your PC and the Quest need to be on the same Wi-Fi network.
+Useful options:
 
-## 2. Build the Quest app
+```bash
+# Force hardware-free test data on any OS.
+python3 bridge/wbb_bridge.py <QUEST_IP_ADDRESS> --demo
 
-Open `android/` in Android Studio (Giraffe or newer), let it sync, then
-either:
+# Linux: skip Bluetooth discovery when you know the board MAC address.
+python3 bridge/wbb_bridge.py <QUEST_IP_ADDRESS> --address XX:XX:XX:XX:XX:XX
 
-- Build → Build Bundle(s)/APK(s) → Build APK(s), or
-- `./gradlew assembleDebug` from the `android/` directory once you have the
-  Android SDK installed.
+# Use another UDP port.
+python3 bridge/wbb_bridge.py <QUEST_IP_ADDRESS> --port 50123
+```
 
-Sideload the resulting APK with SideQuest or `adb install`. Launch it, and
-it'll immediately start listening on UDP port 50123 for the bridge.
+Find your Quest's IP under Settings → Wi-Fi → your network → Advanced, or with
+`adb shell ip -o -4 addr show wlan0` if you have adb set up.
 
-## 3. Map the board to a controller
+### 2. Linux real-board setup
 
-The app shows live values for all 4 cells plus two derived "lean" axes
-(left/right, forward/back — these are the two you'll usually want for a
-stick). Use the spinners to assign:
+Linux real-board mode needs BlueZ/PyBluez and raw Bluetooth permissions:
 
-- **Left stick X/Y** — pick `Lean left/right` and `Lean forward/back` for a
-  natural weight-shift joystick.
-- **Buttons A/B/X/Y** — pick any cell (e.g. `Top-left cell`) to make a corner
-  act as a stomp-to-press button, with a weight threshold in kg.
+```bash
+python3 -m pip install -r requirements.txt
+sudo setcap cap_net_raw+eip "$(readlink -f "$(command -v python3)")"
+```
 
-Hit **Save mapping**. From then on, the app republishes your mapped
-stick/button state as JSON over loopback UDP (default port 50124) — that's
-what `unity/WBBReceiver.cs` reads.
+Open the Balance Board battery cover and press the red sync button right before
+starting the bridge. If discovery is flaky, pass `--address` with the board's
+Bluetooth MAC address.
 
-## 4. Wire it into your own Quest app
+### 3. Build the Quest APK on Linux
 
-Drop `unity/WBBReceiver.cs` into a Unity Quest project, attach it to any
-GameObject, and read `StickX`, `StickY`, `ButtonA`, etc. from your own
-scripts. If you're using Godot or raw OpenXR instead of Unity, the wire
-format is trivial — a JSON line like:
+`build.sh` wraps the Gradle build and copies the newest APK to `dist/`:
+
+```bash
+./build.sh
+```
+
+By default it expects the Android project in `android/` and builds Debug. You
+can override both:
+
+```bash
+ANDROID_DIR=/path/to/android/project BUILD_TYPE=Release ./build.sh
+```
+
+### 4. Install the APK and start streaming
+
+`run.sh` installs the APK over adb, optionally launches the app, detects the
+Quest IP, and then starts the Python bridge:
+
+```bash
+# Install dist/WiiQuest-Debug.apk, then start the Python bridge.
+./run.sh
+
+# Install a custom APK and launch a known package first.
+APK=/path/to/app-debug.apk PACKAGE=com.example.wiiquest ./run.sh
+
+# Pass bridge args after --, for example force demo mode.
+./run.sh -- --demo
+```
+
+If IP detection fails, set it manually:
+
+```bash
+QUEST_IP=192.168.1.42 ./run.sh
+```
+
+## UDP frame format
+
+The Python bridge sends compact JSON lines to `<QUEST_IP>:50123`:
 
 ```json
-{"stickX": 0.42, "stickY": -0.10, "a": false, "b": false, "x": true, "y": false}
+{"tl":18.2,"tr":17.9,"bl":16.7,"br":16.4,"lean_x":-0.01,"lean_y":0.04,"total_kg":69.2,"connected":true,"source":"wii-balance-board","ts":1787136000.0}
 ```
 
-on `127.0.0.1:50124` — port it to whatever language you're using in a few
-lines.
+- `tl`, `tr`, `bl`, `br`: top-left, top-right, bottom-left, bottom-right cell
+  weights in approximate kilograms.
+- `lean_x`: -1 left to +1 right.
+- `lean_y`: -1 back to +1 front.
+- `connected`: `true` for real hardware, `false` for demo data.
 
-## Why two pieces, and not one Quest-only APK?
+## Why not a Quest-only APK?
 
-The board only speaks classic Bluetooth L2CAP (the same thing your original
-`wiiboard.py` script uses). Android's public API for opening L2CAP sockets
-(`createL2capChannel`) is documented as **LE-only** — it explicitly does not
-support the classic BR/EDR transport the board uses. This is also why every
-prior Android app for this board (FitScales, WiiScale, etc.) either stopped
-working when Google locked down the Bluetooth stack, or needed a rooted
-phone with a custom native build. There's also no OS-level API on stock
-Quest for a sideloaded app to inject into the system-wide controller/OpenXR
-input pipeline — so even with a working Bluetooth connection, "replace my
-Touch controllers everywhere" isn't achievable without root. Routing the
-Bluetooth connection through your Linux PC (where raw L2CAP just works) and
-feeding your *own* Quest app over the network sidesteps both limits and is
-the actually-reliable path.
+The board speaks classic Bluetooth L2CAP. Android's public L2CAP APIs are for
+Bluetooth LE channels, not the classic BR/EDR transport the board uses. Quest
+also does not provide a stock, sideloaded-app API for system-wide controller or
+OpenXR input injection. Routing the Balance Board through a Linux PC and sending
+UDP to your own Quest app is the reliable path.
 
 ## Files
 
-- `bridge/wbb_bridge.py` — PC-side Bluetooth-to-UDP bridge (Linux/BlueZ).
-- `android/` — Android Studio project for the Quest-side receiver + mapper.
-- `unity/WBBReceiver.cs` — sample client for your own Unity Quest app.
-# WiiQuest
+- `bridge/wbb_bridge.py` — cross-platform Python UDP bridge with Linux
+  real-board mode and all-OS demo mode.
+- `build.sh` — Linux helper to build a Gradle Android APK and copy it to
+  `dist/WiiQuest-<BUILD_TYPE>.apk`.
+- `run.sh` — adb install helper that starts the Python bridge after installing
+  the APK.
+- `requirements.txt` — optional Linux dependency for real Balance Board
+  Bluetooth support.

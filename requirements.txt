@@ -1,0 +1,3 @@
+# Optional on Linux for real Wii Balance Board Bluetooth support.
+# The bridge itself only uses the Python standard library in --demo mode.
+pybluez; platform_system == "Linux"
